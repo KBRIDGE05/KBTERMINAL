@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>터미널 정보 | KBridge</title>
+  <style>
+    :root{
+      --bg:#ffffff; --text:#0f172a; --muted:#475569; --line:#e2e8f0;
+      --brand:#0ea5e9; --brand-weak:#e0f2fe; --brand-strong:#0369a1;
+      --chip:#f1f5f9; --shadow:0 6px 24px rgba(2,6,23,0.06);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Pretendard,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
+    a{color:var(--brand);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
+
+    header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;margin-bottom:14px}
+    .badge{font-size:12px;color:#fff;background:var(--brand);padding:4px 8px;border-radius:999px}
+    h1{font-size:22px;margin:0}
+    .sub{color:var(--muted)}
+
+    /* ===== Toolbar ===== */
+    .toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:var(--shadow)}
+    .toolbar-left{display:flex;flex-wrap:nowrap;gap:10px;align-items:center;overflow:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+    .toolbar-left::-webkit-scrollbar{height:6px}
+
+    /* Search (left, wider) */
+    .search{display:flex;align-items:center;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;min-width:420px}
+    .search input{border:0;outline:0;width:100%;font-size:15px}
+    .search:focus-within{border-color:var(--brand); box-shadow:0 0 0 4px var(--brand-weak)}
+
+    /* Region chips */
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:10px 12px;border-radius:999px;background:var(--chip);border:1px solid var(--line);cursor:pointer;user-select:none;transition:all .15s;flex:0 0 auto}
+    .chip svg{width:16px;height:16px;opacity:.75}
+    .chip:hover{border-color:#cbd5e1}
+    .chip.active{background:var(--brand-weak);border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand); color:var(--brand)}
+    .chip.active svg{opacity:1}
+
+    /* Table */
+    .table-wrap{margin-top:14px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;box-shadow:var(--shadow)}
+    .table{width:100%;border-collapse:collapse}
+    .table thead{background:#f8fafc;position:sticky;top:0;z-index:1}
+    .table th,.table td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+    .table th{font-size:12px;color:var(--muted)}
+    .table td.region{font-weight:600}
+
+    /* Buttons (larger touch targets) */
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;transition:all .15s ease}
+    .btn:hover{background:var(--brand-weak);border-color:var(--brand)}
+    .btn svg{width:16px;height:16px}
+
+    /* Yard code highlight only (no click) */
+    .yard .yard-chip{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:10px;
+      background:var(--brand-weak);
+      border:1px solid var(--line);
+      color:var(--brand-strong);
+      font-weight:700;
+      letter-spacing:.2px;
+      user-select:text;
+    }
+
+    .scroll-x{overflow:auto}
+    .footer{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;color:var(--muted);font-size:12px}
+    .small{font-size:12px;color:var(--muted)}
+
+    details#tests{margin-top:16px}
+    details#tests summary{cursor:pointer;color:#0f766e}
+
+    /* ======= Mobile (<= 640px): Table -> Card list ======= */
+    @media (max-width: 640px){
+      .wrap{padding:0 12px}
+      .search{min-width:260px;flex:1}
+      .table thead{display:none}
+      .table tr{display:grid;grid-template-columns:1fr;gap:6px;padding:12px;border-bottom:1px solid var(--line)}
+      .table tr:last-child{border-bottom:0}
+      .table td{display:flex;justify-content:space-between;align-items:center;white-space:normal;padding:4px 2px;border-bottom:0}
+      .table td::before{content:attr(data-label);font-size:12px;color:var(--muted);margin-right:12px;flex:0 0 auto}
+      .table td.region{font-size:15px;font-weight:700}
+      .cta .btn{width:100%;justify-content:center;margin-top:4px}
+      .yard .yard-chip{display:block;text-align:center}
+      .footer{flex-direction:column;align-items:flex-start;gap:6px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge">LOGISTICS TOOL</span>
+      <h1>터미널 정보</h1>
+      <div class="sub">지역/코드/터미널명으로 빠르게 조회하세요. (라이트 · 모바일 최적화)</div>
+    </header>
+
+    <section class="toolbar" role="region" aria-label="필터 & 검색">
+      <div class="toolbar-left">
+        <div class="search" role="search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="#64748b" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="q" type="search" placeholder="검색: 지역 / TYPE / 코드명 / 터미널명 / 장치장코드" />
+        </div>
+        <div class="toolbar-left" id="regionChips" aria-label="지역 필터"></div>
+      </div>
+    </section>
+
+    <div class="table-wrap scroll-x">
+      <table class="table" id="terminalTable">
+        <thead>
+          <tr>
+            <th>지역</th>
+            <th>TYPE</th>
+            <th>코드명</th>
+            <th>터미널명</th>
+            <th>장치장코드</th>
+            <th>터미널 공지</th>
+            <th>컨테이너 NO.</th>
+            <th>작업스케줄</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      <div id="count" aria-live="polite"></div>
+      <div class="small">모바일에서는 행이 카드 형태로 표시됩니다. URL은 새 창으로 열립니다.</div>
+    </div>
+
+    <details id="tests">
+      <summary>개발용 테스트 보기</summary>
+      <div id="testResults" class="small"></div>
+    </details>
+  </div>
+
+  <script>
+    const TERMINALS = [
+      { region:"부산", type:"신항", codeName:"DGT", terminalName:"동원글로벌터미널", yardCode:"03077135", notice:"https://www.dgtbusan.com", contno:"https://www.dgtbusan.com/DGT/esvc/cntr/cntrInfo", schedule:"https://www.dgtbusan.com/DGT/esvc/vessel/berthScheduleT" },
+      { region:"부산", type:"신항", codeName:"PNIT", terminalName:"부산신항국제터미널", yardCode:"03077013", notice:"https://www.pnitl.com", contno:"https://www.pnitl.com/infoservice/cntr/cntrSearchList.jsp", schedule:"https://www.pnitl.com/infoservice/vessel/vslScheduleList.jsp" },
+      { region:"부산", type:"신항", codeName:"BNMT", terminalName:"부산신항다목적터미널", yardCode:"03077003", notice:"http://www.bnmt.co.kr/", contno:"http://www.bnmt.co.kr/ebiz/?code=0202", schedule:"http://www.bnmt.co.kr/ebiz/?code=0101" },
+      { region:"부산", type:"신항", codeName:"PNC", terminalName:"부산신항만 주식회사", yardCode:"03077102", notice:"https://svc.pncport.com", contno:"https://svc.pncport.com/info/CMS/Container/Info.pnc?mCode=MN002", schedule:"https://svc.pncport.com/info/CMS/Ship/Info.pnc?mCode=MN014" },
+      { region:"부산", type:"신항", codeName:"BCT", terminalName:"부산컨테이너터미널", yardCode:"03077126", notice:"https://info.bct2-4.com", contno:"https://info.bct2-4.com/infoservice/index.html", schedule:"https://info.bct2-4.com/infoservice/index.html" },
+      { region:"부산", type:"신항", codeName:"BNCT", terminalName:"비엔씨티", yardCode:"03077026", notice:"https://www.bnctkorea.com", contno:"https://info.bnctkorea.com/esvc/cntr/cntrSrch", schedule:"https://info.bnctkorea.com/esvc/vessel/berthScheduleT" },
+      { region:"부산", type:"신항", codeName:"HJNC", terminalName:"한진부산컨테이너터미널", yardCode:"03077006", notice:"https://www.hjnc.co.kr", contno:"https://www.hjnc.co.kr/esvc/cntr/info", schedule:"https://www.hjnc.co.kr/esvc/vessel/berthScheduleT" },
+      { region:"부산", type:"신항", codeName:"HPNT", terminalName:"현대부산신항만", yardCode:"03077011", notice:"https://www.hpnt.co.kr", contno:"https://www.hpnt.co.kr/infoservice/cntr/cntrSearchList.jsp", schedule:"https://www.hpnt.co.kr/infoservice/vessel/vslScheduleList.jsp" },
+      { region:"부산", type:"북항", codeName:"BPTC", terminalName:"부산항터미널(감만)", yardCode:"03012226", notice:"https://info.bptc.co.kr/content/index.jsp", contno:"https://info.bptc.co.kr/content/cg/frame/cntr_frame_cg_kr.jsp?p_id=CONT_CN_KR&snb_num=1&snb_div=service", schedule:"https://info.bptc.co.kr/content/sw/frame/berth_status_text_frame_sw_kr.jsp?p_id=BETX_SH_KR&snb_num=2&snb_div=service" },
+      { region:"부산", type:"북항", codeName:"BPTC", terminalName:"부산항터미널(신선대)", yardCode:"03077016", notice:"https://www.bptc.co.kr", contno:"https://info.bptc.co.kr/content/cg/frame/cntr_frame_cg_kr.jsp?p_id=CONT_CN_KR&snb_div=service&snb_num=1", schedule:"https://info.bptc.co.kr/content/sw/frame/berth_status_text_frame_sw_kr.jsp?p_id=BETX_SH_KR&snb_div=service&snb_num=1" },
+      { region:"부산", type:"북항", codeName:"HGCT", terminalName:"신감만 한국허치슨(주)", yardCode:"03012010", notice:"https://custom.hktl.com", contno:"https://custom.hktl.com/jsp/T04/dataio_copino.jsp", schedule:"https://custom.hktl.com/jsp/T01/sunsuk.jsp" },
+      { region:"부산", type:"북항", codeName:"TOC", terminalName:"인터지스 7부두 보세창고", yardCode:"03012343", notice:"https://e-iway.com", contno:"https://e-iway.com/", schedule:"https://e-iway.com/" },
+      { region:"부산", type:"북항", codeName:"HBCT", terminalName:"허치슨부산터미널", yardCode:"03012240", notice:"https://www.hktl.com", contno:"https://custom.hktl.com/jsp/T04/dataio_copino.jsp", schedule:"https://custom.hktl.com/jsp/T01/sunsuk.jsp" },
+      { region:"인천", type:"신항", codeName:"SNCT", terminalName:"선광신컨테이너터미널", yardCode:"02012014", notice:"https://snct.sun-kwang.co.kr", contno:"https://snct.sun-kwang.co.kr/infoservice/webpage/opt/ContainerInfo.jsp", schedule:"https://snct.sun-kwang.co.kr/infoservice/webpage/vessel/vslScheduleText.jsp" },
+      { region:"인천", type:"신항", codeName:"HJIT", terminalName:"한진인천컨테이너터미널", yardCode:"02012016", notice:"http://www.hjit.co.kr/kor/Board.do?mCode=MN0021", contno:"http://59.17.254.10:9130/esvc/", schedule:"http://59.17.254.10:9130/esvc/berth/BerthAction.do?cmd=BerthScheduleList&menuID=01" },
+      { region:"인천", type:"구항", codeName:"E1CT", terminalName:"E1 컨테이너터미널", yardCode:"02012007", notice:"http://www.e1ct.co.kr/community/notice", contno:"http://www.e1ct.co.kr/info/cntrInfo/details", schedule:"http://www.e1ct.co.kr/info/terminal/berthText" },
+      { region:"인천", type:"구항", codeName:"ICT", terminalName:"PSA 인천 컨테이너터미널", yardCode:"02077002", notice:"https://www.psa-ict.co.kr", contno:"https://service.psa-ict.co.kr/webpage/general/contInfo.jsp", schedule:"https://service.psa-ict.co.kr/webpage/vessel/vslScheduleText.jsp" },
+      { region:"인천", type:"구항", codeName:"IFT", terminalName:"인천 국제여객터미널", yardCode:"02012018", notice:"http://www.icferry.or.kr/article/list.do?menuKey=965&boardKey=8", contno:"http://www.icferry.or.kr/realp2mis/realP2misList.do?menuKey=18", schedule:"http://www.icferry.or.kr/realp2mis/realP2misList.do?menuKey=18" },
+      { region:"평택", type:"-", codeName:"PNCT", terminalName:"평택동방아이포트", yardCode:"01612002", notice:"http://www.pnct.co.kr/homepage/page/cust_notice.jsp", contno:"http://www.pnct.co.kr/infoservice/index.html", schedule:"http://www.pnct.co.kr/infoservice/index.html" },
+      { region:"평택", type:"-", codeName:"PCTC", terminalName:"평택컨테이너터미널", yardCode:"01612033", notice:"http://www.pctc21.com/board/notice", contno:"http://www.pctc21.com/esvc/cntr/info2", schedule:"http://www.pctc21.com/esvc/vessel/berthScheduleT" },
+      { region:"군산", type:"-", codeName:"IGCT", terminalName:"군산 컨테이너터미널", yardCode:"08012025", notice:"http://www.igct.co.kr/?m=E&s=1", contno:"http://www.igct.co.kr/e-service/?m=A&s=1", schedule:"http://www.igct.co.kr/e-service/?m=B&s=2" },
+      { region:"광양", type:"-", codeName:"GWCT", terminalName:"광양서부 컨테이너터미널", yardCode:"06277057", notice:"http://www.gwct.co.kr/sub.php?m=F&s=A", contno:"http://www.gwct.co.kr/e-service/?m=B&s=A", schedule:"http://www.gwct.co.kr/e-service/?m=I&s=A" },
+      { region:"광양", type:"-", codeName:"KIT", terminalName:"한국국제터미널(허치슨)", yardCode:"06277033", notice:"https://www.kitl.com", contno:"https://info.kitl.com/jsp/T04/dataio_cntr.jsp", schedule:"https://info.kitl.com/jsp/T01/sunsuk.jsp" },
+      { region:"울산", type:"신항", codeName:"UNCT", terminalName:"유엔씨티", yardCode:"11012005", notice:"http://www.unct.co.kr/#/customer/notice", contno:"http://www.unct.co.kr/eservice/#/ES030_100", schedule:"http://www.unct.co.kr/eservice/#/ES010_100" },
+      { region:"울산", type:"구항", codeName:"JUCT", terminalName:"정일울산 컨테이너터미널", yardCode:"11012030", notice:"https://www.juct.co.kr/Web-App/TBoard/LstBoardDoc.asp?GrpID=30", contno:"https://www.juct.co.kr/Service/03.asp?ui=8", schedule:"https://www.juct.co.kr/Service/01.asp?ui=4" }
+    ];
+
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
+
+    const state = { region:'전체', q:'' };
+
+    const SAFE_URL_UPDATE = (()=>{
+      try{
+        const href = String(location && location.href || '');
+        if (!('history' in window) || typeof history.replaceState !== 'function') return false;
+        if (href.startsWith('about:')) return false;
+        return true;
+      }catch(e){ return false; }
+    })();
+
+    function updateQueryParam(key, value){
+      if(!SAFE_URL_UPDATE) return;
+      try{
+        const url = new URL(location.href);
+        if(value){ url.searchParams.set(key, value); }
+        else{ url.searchParams.delete(key); }
+        history.replaceState(null, '', url);
+      }catch(e){ /* ignore */ }
+    }
+
+    function fromQueryParam(){
+      try{
+        const u = new URL(location.href);
+        const r = u.searchParams.get('region');
+        if(r){ state.region = r; }
+        const q = u.searchParams.get('q');
+        if(q){ state.q = q; $('#q').value = q; }
+      }catch(e){ /* ignore when about:srcdoc */ }
+    }
+
+    function getRegions(){
+      const uniq = new Set(TERMINALS.map(t=>t.region));
+      return ['전체', ...Array.from(uniq)];
+    }
+
+    const pinIcon = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22s7-5.3 7-12a7 7 0 1 0-14 0c0 6.7 7 12 7 12Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.5" fill="currentColor"/></svg>';
+
+    function renderChips(){
+      const box = document.getElementById('regionChips');
+      box.innerHTML = '';
+      getRegions().forEach(r => {
+        const chip = document.createElement('button');
+        chip.className = 'chip' + (state.region===r ? ' active':'' );
+        chip.type = 'button';
+        chip.innerHTML = pinIcon + '<span style="display:inline-block;min-width:2ch">'+r+'</span>';
+        chip.setAttribute('aria-pressed', state.region===r);
+        chip.addEventListener('click',()=>{
+          state.region=r;
+          update();
+          updateQueryParam('region', r==='전체'?'':r);
+        });
+        box.appendChild(chip);
+      });
+    }
+
+    function icon(kind){
+      if(kind==='notice'){
+        return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 11h3l7-5v13l-7-5H3V11Z" stroke="currentColor" stroke-width="1.8"/><path d="M18 10v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+      }
+      if(kind==='contno'){
+        return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M7 9v6M12 9v6M17 9v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+      }
+      return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 3v4M16 3v4M3 10h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+    }
+
+    function linkBtn(url, kind){
+      if(!url) return '<span class="small" style="color:#94a3b8">-</span>';
+      const safe = String(url).replace(/"/g,'');
+      const label = kind==='notice'?'공지':'조회';
+      return `<a class="btn" href="${safe}" target="_blank" rel="noopener" aria-label="${label}">${icon(kind)}<span>${label}</span></a>`;
+    }
+
+    function renderTable(rows){
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+      if(!rows.length){
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 8; td.style.color = '#64748b'; td.textContent = '검색 조건에 맞는 결과가 없습니다.';
+        tr.appendChild(td); tbody.appendChild(tr); return;
+      }
+      rows.forEach(r=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="region" data-label="지역">${r.region}</td>
+          <td data-label="TYPE">${r.type||''}</td>
+          <td data-label="코드명">${r.codeName||''}</td>
+          <td data-label="터미널명">${r.terminalName||''}</td>
+          <td class="yard" data-label="장치장코드"><span class="yard-chip">${r.yardCode||''}</span></td>
+          <td class="cta" data-label="터미널 공지">${linkBtn(r.notice,'notice')}</td>
+          <td class="cta" data-label="컨테이너 NO.">${linkBtn(r.contno,'contno')}</td>
+          <td class="cta" data-label="작업스케줄">${linkBtn(r.schedule,'schedule')}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterRows(){
+      const q = state.q.trim().toLowerCase();
+      return TERMINALS.filter(r=>{
+        const inRegion = state.region==='전체' || r.region===state.region;
+        if(!inRegion) return false;
+        if(!q) return true;
+        const hay = [r.region,r.type,r.codeName,r.terminalName,r.yardCode].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    function update(){
+      renderChips();
+      const rows = filterRows();
+      renderTable(rows);
+      $('#count').textContent = `${rows.length.toLocaleString()}건 표시`;
+    }
+
+    $('#q').addEventListener('input', (e)=>{
+      state.q = e.target.value;
+      update();
+      updateQueryParam('q', state.q||'');
+    });
+
+    (function runTests(){
+      const results = [];
+      const log = (ok,msg)=> results.push((ok? '✅':'❌') + ' ' + msg);
+      const save = {...state};
+      try{
+        try{ updateQueryParam('region','부산'); log(true,'updateQueryParam 호출 시 예외 없음'); }catch(e){ log(false,'updateQueryParam 예외: '+e.message); }
+        state.region='전체'; state.q='';
+        const all = filterRows();
+        log(all.length===TERMINALS.length, `전체 필터 결과 수 = ${all.length} (기대값 ${TERMINALS.length})`);
+        state.region='부산'; state.q='PNIT';
+        const one = filterRows();
+        log(one.length===1 && one[0].codeName==='PNIT', `부산 + PNIT 결과 1건 (코드명 PNIT)`);
+      } finally {
+        Object.assign(state, save);
+        update();
+      }
+      document.getElementById('testResults').innerHTML = '<ul>'+results.map(r=>`<li>${r}</li>`).join('')+'</ul>';
+    })();
+
+    fromQueryParam();
+    renderChips();
+    update();
+  </script>
+</body>
+</html>
